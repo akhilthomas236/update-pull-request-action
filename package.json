@@ -4,7 +4,7 @@
   "description": "GitHub Action to add a comment to a PR",
   "main": "dist/index.js",
   "scripts": {
-    "build": "ncc build src/index.js -o dist",
+    "build": "npx @vercel/ncc build src/index.js -o dist",
     "test": "jest",
     "lint": "eslint .",
     "prepare": "npm run build"
