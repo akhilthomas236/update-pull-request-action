@@ -4,7 +4,7 @@ A GitHub Action that adds a comment to a Pull Request that triggered the workflo
 
 ## Features
 
-- Adds a comment to the pull request that triggered the workflow.
+- Adds a comment to the pull request that triggered the workflow
 - Option to include timestamp in the comment.
 - Can be used in any workflow triggered by a pull request event.
 
