@@ -1,0 +1,20 @@
+name: PR Comment Example
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  add-comment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Add comment to PR
+        uses: ${{ github.repository }}@${{ github.ref_name }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          comment-message: |
+            👋 Thank you for your contribution!
+            
+            This is an automated message from our PR Comment Action.
+            Your PR has been received and will be reviewed soon.

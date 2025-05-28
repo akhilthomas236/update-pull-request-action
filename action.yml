@@ -1,0 +1,23 @@
+name: 'PR Comment Action'
+description: 'Adds a comment to the PR that triggered the workflow'
+author: 'GH-Action-Creator'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  comment-message:
+    description: 'The message to add as a comment to the PR'
+    required: true
+  include-timestamp:
+    description: 'Whether to include a timestamp in the comment'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'message-circle'
+  color: 'blue'
