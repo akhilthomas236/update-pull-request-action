@@ -1,0 +1,117 @@
+name: 'PR Comment Action'
+description: 'Adds a comment to the PR that triggered the workflow'
+author: 'GH-Action-Creator'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  comment-message:
+    description: 'The message to add as a comment to the PR'
+    required: true
+  include-timestamp:
+    description: 'Whether to include a timestamp in the comment'
+    required: false
+    default: 'true'
+
+outputs:
+  comment-url:
+    description: 'URL of the created comment'
+  comment-id:
+    description: 'ID of the created comment'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Add comment to PR
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        COMMENT_MESSAGE: ${{ inputs.comment-message }}
+        INCLUDE_TIMESTAMP: ${{ inputs.include-timestamp }}
+      run: |
+        echo "Adding comment to PR..."
+        
+        # Error handling for non-PR events
+        if [ ! -f "$GITHUB_EVENT_PATH" ]; then
+          echo "::error::Event file not found at $GITHUB_EVENT_PATH"
+          exit 1
+        fi
+        
+        # Debug the event file content
+        echo "Event file content (first 100 lines):"
+        head -n 100 "$GITHUB_EVENT_PATH"
+        
+        # Get PR number - handle both pull_request events and issue_comment events on PRs
+        PR_NUMBER=""
+        if jq -e '.pull_request.number' "$GITHUB_EVENT_PATH" > /dev/null 2>&1; then
+          PR_NUMBER=$(jq --raw-output '.pull_request.number' "$GITHUB_EVENT_PATH")
+        elif jq -e '.issue.pull_request' "$GITHUB_EVENT_PATH" > /dev/null 2>&1; then
+          PR_NUMBER=$(jq --raw-output '.issue.number' "$GITHUB_EVENT_PATH")
+        fi
+        
+        # Validate PR number
+        if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
+          echo "::error::Could not determine PR number from event payload"
+          echo "Event type: $GITHUB_EVENT_NAME"
+          exit 1
+        fi
+        
+        REPO_OWNER=$(jq --raw-output '.repository.owner.login' "$GITHUB_EVENT_PATH")
+        REPO_NAME=$(jq --raw-output '.repository.name' "$GITHUB_EVENT_PATH")
+        
+        COMMENT="$COMMENT_MESSAGE"
+        if [[ "$INCLUDE_TIMESTAMP" == "true" ]]; then
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          COMMENT="$COMMENT_MESSAGE
+
+_Timestamp: $TIMESTAMP_"
+        fi
+        
+        # Debug information
+        echo "PR Number: $PR_NUMBER"
+        echo "Repo Owner: $REPO_OWNER"
+        echo "Repo Name: $REPO_NAME"
+        
+        # Properly escape the comment for JSON
+        COMMENT_JSON=$(echo "$COMMENT" | jq -Rs .)
+        
+        # Create the full JSON payload
+        JSON_PAYLOAD="{\"body\":$COMMENT_JSON}"
+        echo "Posting comment with payload:"
+        echo "$JSON_PAYLOAD"
+        
+        # Post the comment and store the full response
+        RESPONSE=$(curl -v -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Content-Type: application/json" \
+          "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments" \
+          -d "$JSON_PAYLOAD")
+        
+        # Print the full response for debugging
+        echo "API Response:"
+        echo "$RESPONSE"
+        
+        # Extract URL and ID
+        COMMENT_URL=$(echo "$RESPONSE" | jq -r '.html_url // "null"')
+        COMMENT_ID=$(echo "$RESPONSE" | jq -r '.id // "null"')
+        
+        # Debug output
+        echo "Comment URL: $COMMENT_URL"
+        echo "Comment ID: $COMMENT_ID"
+        
+        # Set outputs for workflow using the newer GitHub Actions output syntax
+        if [ -n "$GITHUB_OUTPUT" ]; then
+          # GitHub Actions runner >= 2.297.0 - use the GITHUB_OUTPUT environment file
+          echo "comment-url=$COMMENT_URL" >> $GITHUB_OUTPUT
+          echo "comment-id=$COMMENT_ID" >> $GITHUB_OUTPUT
+        else
+          # Fallback for older runners - use the deprecated set-output command
+          echo "::set-output name=comment-url::$COMMENT_URL"
+          echo "::set-output name=comment-id::$COMMENT_ID"
+        fi
+
+branding:
+  icon: 'message-circle'
+  color: 'blue'

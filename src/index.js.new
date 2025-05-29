@@ -16,7 +16,7 @@ async function run() {
     
     // Debug event context
     core.info(`Event name: ${context.eventName}`);
-    core.info(`Event action: ${context.payload.action}`);
+    core.info(`Event action: ${context.payload.action || 'no action'}`);
     
     // Handle both pull_request events and issue_comment events on PRs
     let prNumber;
@@ -40,16 +40,29 @@ async function run() {
     // Add comment to PR
     const { owner, repo } = context.repo;
     
-    const response = await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: prNumber,
-      body: comment
-    });
+    core.info(`Adding comment to PR #${prNumber} in ${owner}/${repo}`);
+    core.debug(`Comment content: ${comment}`);
     
-    core.info(`Comment added to PR #${prNumber}`);
-    core.setOutput('comment-url', response.data.html_url);
-    core.setOutput('comment-id', response.data.id.toString());
+    try {
+      const response = await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: prNumber,
+        body: comment
+      });
+      
+      core.info(`Comment added to PR #${prNumber}`);
+      core.info(`Comment URL: ${response.data.html_url}`);
+      core.setOutput('comment-url', response.data.html_url);
+      core.setOutput('comment-id', response.data.id.toString());
+    } catch (apiError) {
+      core.error(`GitHub API Error: ${apiError.message}`);
+      if (apiError.response) {
+        core.error(`Status: ${apiError.response.status}`);
+        core.error(`Response body: ${JSON.stringify(apiError.response.data)}`);
+      }
+      throw apiError;
+    }
     
   } catch (error) {
     core.setFailed(`Action failed with error: ${error.message}`);

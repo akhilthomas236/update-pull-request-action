@@ -34505,8 +34505,21 @@ async function run() {
     
     // Get context
     const context = github.context;
-    if (!context.payload.pull_request) {
-      throw new Error('This action only works on pull request events');
+    
+    // Debug event context
+    core.info(`Event name: ${context.eventName}`);
+    core.info(`Event action: ${context.payload.action}`);
+    
+    // Handle both pull_request events and issue_comment events on PRs
+    let prNumber;
+    if (context.payload.pull_request) {
+      prNumber = context.payload.pull_request.number;
+      core.info(`PR number found in pull_request payload: ${prNumber}`);
+    } else if (context.payload.issue && context.payload.issue.pull_request) {
+      prNumber = context.payload.issue.number;
+      core.info(`PR number found in issue payload: ${prNumber}`);
+    } else {
+      throw new Error('This action only works on pull request or issue_comment events on PRs');
     }
     
     // Format comment
@@ -34517,7 +34530,6 @@ async function run() {
     }
     
     // Add comment to PR
-    const prNumber = context.payload.pull_request.number;
     const { owner, repo } = context.repo;
     
     const response = await octokit.rest.issues.createComment({

@@ -21,18 +21,8 @@ outputs:
     description: 'ID of the created comment'
 
 runs:
-  using: 'composite'
-  steps:
-    - name: Add comment to PR
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-        COMMENT_MESSAGE: ${{ inputs.comment-message }}
-        INCLUDE_TIMESTAMP: ${{ inputs.include-timestamp }}
-      run: |
-        echo "Adding comment to PR..."
-        
-        # Error handling for non-PR events
+  using: 'node16'
+  main: 'dist/index.js'
         if [ ! -f "$GITHUB_EVENT_PATH" ]; then
           echo "::error::Event file not found at $GITHUB_EVENT_PATH"
           exit 1
