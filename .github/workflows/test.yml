@@ -1,0 +1,70 @@
+name: Test Action
+
+on:
+  pull_request:
+    types: [opened]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # For workflow_dispatch events, we'll create a test comment on the most recent PR
+      - name: Debug information
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Event path: $GITHUB_EVENT_PATH"
+          echo "PR number: ${{ github.event.pull_request.number }}"
+          jq '.' "$GITHUB_EVENT_PATH" || echo "Could not parse event JSON"
+      
+      - name: Find PR for testing
+        if: github.event_name == 'workflow_dispatch'
+        id: find-pr
+        run: |
+          PR_NUMBER=$(gh pr list --limit 1 --json number --jq '.[0].number' || echo "1")
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          echo "Found PR #$PR_NUMBER for testing"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create temporary test PR if needed
+        if: github.event_name == 'workflow_dispatch' && env.PR_NUMBER == ''
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git checkout -b test-action-branch
+          echo "# Test Change" >> README.md
+          git add README.md
+          git commit -m "Test change for action testing"
+          git push origin test-action-branch
+          PR_NUMBER=$(gh pr create --title "Test PR for Action Testing" --body "This is a test PR to verify the PR comment action works correctly" --base main --head test-action-branch --json number --jq '.number')
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Test PR Comment Action
+        id: test-action
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          comment-message: |
+            🧪 This is a test comment from the action itself.
+            
+            Testing that the action works correctly!
+            
+      - name: Show results
+        run: |
+          echo "Comment URL: ${{ steps.test-action.outputs.comment-url }}"
+          echo "Comment ID: ${{ steps.test-action.outputs.comment-id }}"
+          
+      - name: Check for failures
+        if: ${{ steps.test-action.outputs.comment-url == 'null' || steps.test-action.outputs.comment-id == 'null' }}
+        run: |
+          echo "::error::Failed to add comment to PR. Check the logs for more details."
+          exit 1

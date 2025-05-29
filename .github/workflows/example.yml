@@ -14,6 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      - name: Debug Event Context
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Event path: $GITHUB_EVENT_PATH"
+          echo "PR number: ${{ github.event.pull_request.number }}"
+      
       - name: Add comment to PR
         id: add-comment
         uses: akhilthomas236/update-pull-request-action@main
@@ -29,3 +35,9 @@ jobs:
         run: |
           echo "Comment URL: ${{ steps.add-comment.outputs.comment-url }}"
           echo "Comment ID: ${{ steps.add-comment.outputs.comment-id }}"
+          
+      - name: Check for failures
+        if: ${{ steps.add-comment.outputs.comment-url == 'null' || steps.add-comment.outputs.comment-id == 'null' }}
+        run: |
+          echo "::error::Failed to add comment to PR. Check the logs for more details."
+          exit 1
