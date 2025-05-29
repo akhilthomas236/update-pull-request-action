@@ -14,12 +14,6 @@ inputs:
     required: false
     default: 'true'
 
-outputs:
-  comment-url:
-    description: 'URL of the created comment'
-  comment-id:
-    description: 'ID of the created comment'
-
 runs:
   using: 'composite'
   steps:
@@ -31,7 +25,6 @@ runs:
         INCLUDE_TIMESTAMP: ${{ inputs.include-timestamp }}
       run: |
         echo "Adding comment to PR..."
-        
         # Error handling for non-PR events
         if [ ! -f "$GITHUB_EVENT_PATH" ]; then
           echo "::error::Event file not found at $GITHUB_EVENT_PATH"
